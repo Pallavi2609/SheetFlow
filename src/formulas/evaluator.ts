@@ -31,7 +31,52 @@ const FUNCTIONS: Record<string, (values: CellArg[]) => EvalResult> = {
     if (nums.length < 2) return { value: null, error: '#VALUE!' };
     return { value: roundNumber(Math.pow(nums[0], nums[1])) };
   },
+  COUNT: (values) => ({ value: numbersOf(values).length }),
+  ABS: (values) => ({ value: roundNumber(Math.abs(numericArgs('ABS', values, 1)[0])) }),
+  ROUND: (values) => {
+    const [value, digits] = numericArgs('ROUND', values, 2);
+    return { value: roundToDigits(value, digits) };
+  },
+  SQRT: (values) => {
+    const [value] = numericArgs('SQRT', values, 1);
+    if (value < 0) fail('#VALUE!', 'SQRT expects a non-negative value');
+    return { value: roundNumber(Math.sqrt(value)) };
+  },
+  MOD: (values) => {
+    const [value, divisor] = numericArgs('MOD', values, 2);
+    if (divisor === 0) return { value: null, error: '#DIV/0!' };
+    // Spreadsheet-style remainder: the sign follows the divisor, not the value.
+    return { value: roundNumber(((value % divisor) + divisor) % divisor) };
+  },
 };
+
+function numericArg(name: string, value: CellArg): number {
+  if (value === null) return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  fail('#VALUE!', `${name} expects a numeric argument`);
+}
+
+/**
+ * Validates the exact argument count and numeric types of the scalar functions.
+ * Bare ranges arrive as several values, so they are rejected here rather than
+ * silently using the first cell.
+ */
+function numericArgs(name: string, values: CellArg[], count: number): number[] {
+  if (values.length !== count) {
+    fail('#VALUE!', `${name} expects ${count === 1 ? 'one argument' : `${count} arguments`}`);
+  }
+  return values.map((value) => numericArg(name, value));
+}
+
+function roundToDigits(value: number, digits: number): number {
+  const decimals = Math.max(-12, Math.min(12, Math.trunc(digits)));
+  const factor = Math.pow(10, decimals);
+  // Round the scaled value at 12 significant digits first so binary noise such as
+  // 2.675 * 100 = 267.49999999999997 does not round the wrong way.
+  const scaled = Number((value * factor).toPrecision(12));
+  const rounded = Math.sign(scaled) * Math.round(Math.abs(scaled));
+  return roundNumber(rounded / factor);
+}
 
 function numbersOf(values: CellArg[]): number[] {
   const nums: number[] = [];

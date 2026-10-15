@@ -13,6 +13,7 @@ import {
   Keyboard,
   Redo2,
   RotateCcw,
+  Sigma,
   Undo2,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -20,6 +21,7 @@ import { useRef, useState } from 'react';
 import { exportCsvText, useSheetStore } from '../../store/sheetStore';
 import { clipboardText, writeSystemClipboard } from '../../utils/clipboard';
 import { toKey } from '../../utils/address';
+import FormulaHelper from '../spreadsheet/FormulaHelper';
 import ShortcutsHelp from '../spreadsheet/ShortcutsHelp';
 import ToolButton from './ToolButton';
 
@@ -40,6 +42,7 @@ export default function Toolbar() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [formulaHelperOpen, setFormulaHelperOpen] = useState(false);
 
   const handleCopy = () => {
     const payload = useSheetStore.getState().copy();
@@ -166,6 +169,13 @@ export default function Toolbar() {
       <ToolButton label="Keyboard shortcuts help" onClick={() => setHelpOpen(true)}>
         <Keyboard size={15} />
       </ToolButton>
+      <ToolButton
+        label="Formulas"
+        tooltip="Formula Helper"
+        onClick={() => setFormulaHelperOpen(true)}
+      >
+        <Sigma size={15} />
+      </ToolButton>
 
       <input
         ref={fileInputRef}
@@ -177,6 +187,7 @@ export default function Toolbar() {
       />
 
       {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
+      {formulaHelperOpen && <FormulaHelper onClose={() => setFormulaHelperOpen(false)} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 interface ToolButtonProps {
   label: string;
+  tooltip?: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -11,6 +12,7 @@ interface ToolButtonProps {
 
 export default function ToolButton({
   label,
+  tooltip,
   onClick,
   disabled,
   danger,
@@ -20,7 +22,7 @@ export default function ToolButton({
   return (
     <button
       type="button"
-      title={label}
+      title={tooltip ?? label}
       aria-label={label}
       disabled={disabled}
       aria-pressed={active === undefined ? undefined : active}

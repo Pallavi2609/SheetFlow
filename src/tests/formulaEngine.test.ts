@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { GUIDE_SECTIONS } from '../components/spreadsheet/FormulaHelper';
 import { clearParseCache, collectRefs, evaluateRaw, FormulaError, parseFormula } from '../formulas';
 import type { EvalContext } from '../formulas';
 import { shiftFormulaRefs } from '../formulas/shift';
@@ -143,6 +144,118 @@ describe('range functions', () => {
 
   it('propagates cell errors through functions', () => {
     expect(evalWith({ A1: '=1/0' }, '=SUM(A1:A2)')).toEqual({ value: null, error: '#DIV/0!' });
+  });
+});
+
+describe('scalar functions (ABS, ROUND, SQRT, MOD)', () => {
+  it('ABS returns the unsigned value', () => {
+    expect(evalWith({ A1: '-9' }, '=ABS(A1)')).toEqual({ value: 9 });
+    expect(evalWith({}, '=ABS(-2.5)')).toEqual({ value: 2.5 });
+  });
+
+  it('treats empty cells as zero and rejects text', () => {
+    expect(evalWith({}, '=ABS(A1)')).toEqual({ value: 0 });
+    expect(evalWith({ A1: 'text' }, '=ABS(A1)')).toEqual({ value: null, error: '#VALUE!' });
+  });
+
+  it('rejects ranges, missing arguments, and extra arguments', () => {
+    const cells = { A1: '1', A2: '2' };
+    expect(evalWith(cells, '=ABS(A1:A2)')).toEqual({ value: null, error: '#VALUE!' });
+    expect(evalWith({}, '=ABS()')).toEqual({ value: null, error: '#VALUE!' });
+    expect(evalWith({}, '=SQRT(4,9)')).toEqual({ value: null, error: '#VALUE!' });
+  });
+
+  it('ROUND rounds half away from zero', () => {
+    expect(evalWith({}, '=ROUND(2.675,2)')).toEqual({ value: 2.68 });
+    expect(evalWith({}, '=ROUND(2.5,0)')).toEqual({ value: 3 });
+    expect(evalWith({}, '=ROUND(-2.5,0)')).toEqual({ value: -3 });
+    expect(evalWith({}, '=ROUND(1.2345,2)')).toEqual({ value: 1.23 });
+    expect(evalWith({}, '=ROUND(15,-1)')).toEqual({ value: 20 });
+  });
+
+  it('ROUND requires a number and a digit count', () => {
+    expect(evalWith({}, '=ROUND(1.5)')).toEqual({ value: null, error: '#VALUE!' });
+    expect(evalWith({}, '=ROUND(1.5,"x")')).toEqual({ value: null, error: '#ERROR!' });
+  });
+
+  it('SQRT of a negative number is #VALUE!', () => {
+    expect(evalWith({}, '=SQRT(9)')).toEqual({ value: 3 });
+    expect(evalWith({}, '=SQRT(2)')).toEqual({ value: roundNumber(Math.sqrt(2)) });
+    expect(evalWith({}, '=SQRT(-1)')).toEqual({ value: null, error: '#VALUE!' });
+  });
+
+  it('MOD follows the sign of the divisor and rejects a zero divisor', () => {
+    expect(evalWith({}, '=MOD(7,3)')).toEqual({ value: 1 });
+    expect(evalWith({}, '=MOD(-3,2)')).toEqual({ value: 1 });
+    expect(evalWith({}, '=MOD(3,-2)')).toEqual({ value: -1 });
+    expect(evalWith({}, '=MOD(7,0)')).toEqual({ value: null, error: '#DIV/0!' });
+  });
+
+  it('POWER matches the ^ operator', () => {
+    expect(evalWith({}, '=POWER(2,10)')).toEqual({ value: 1024 });
+    expect(evalWith({}, '=2^10')).toEqual({ value: 1024 });
+    expect(evalWith({}, '=POWER(2)')).toEqual({ value: null, error: '#VALUE!' });
+  });
+
+  it('propagates errors from referenced cells', () => {
+    expect(evalWith({ A1: '=1/0' }, '=SQRT(A1)')).toEqual({ value: null, error: '#DIV/0!' });
+    expect(evalWith({ A1: '=B9:B9' }, '=ABS(A1)')).toEqual({ value: null, error: '#VALUE!' });
+  });
+
+  it('nests inside arithmetic and other functions', () => {
+    expect(evalWith({ A1: '-4' }, '=ABS(A1)*3')).toEqual({ value: 12 });
+    expect(evalWith({ A1: '9', A2: '16' }, '=SUM(SQRT(A1),SQRT(A2))')).toEqual({ value: 7 });
+    expect(evalWith({ A1: '10' }, '=ROUND(A1/3,3)')).toEqual({ value: 3.333 });
+  });
+
+  it('registers references for dependency tracking and cycle detection', () => {
+    expect(collectRefs(parseFormula('SQRT(A1)+ABS(B2)')).sort()).toEqual(['A1', 'B2']);
+    expect(evaluateRaw('=ROUND(A1,2)', ctxFor({ A1: '1.234' })).refs).toEqual(['A1']);
+    expect(evalWith({ A1: '=ABS(B1)', B1: '=SQRT(A1)' }, '=A1')).toEqual({
+      value: null,
+      error: '#CYCLE!',
+    });
+  });
+});
+
+describe('COUNT', () => {
+  const cells = { A1: '5', A2: '', A3: 'text', A4: '0', A5: '=2+2' };
+
+  it('counts only numeric values', () => {
+    expect(evalWith(cells, '=COUNT(A1:A5)')).toEqual({ value: 3 });
+  });
+
+  it('counts zero and ignores text and empty cells', () => {
+    expect(evalWith({}, '=COUNT(A1:A5)')).toEqual({ value: 0 });
+    expect(evalWith({ A1: '0' }, '=COUNT(A1:A5)')).toEqual({ value: 1 });
+    expect(evalWith({ A1: 'text' }, '=COUNT(A1:A5)')).toEqual({ value: 0 });
+  });
+
+  it('accepts literals and several arguments', () => {
+    expect(evalWith({}, '=COUNT(1,2,3)')).toEqual({ value: 3 });
+    expect(evalWith(cells, '=COUNT(A1:A2,100)')).toEqual({ value: 2 });
+  });
+
+  it('propagates cell errors like the other functions', () => {
+    expect(evalWith({ A1: '=1/0' }, '=COUNT(A1:A2)')).toEqual({ value: null, error: '#DIV/0!' });
+  });
+});
+
+describe('the formula guide only documents formulas the engine can calculate', () => {
+  // Cells chosen so every documented example evaluates to a real number.
+  const values = { A1: '10', A2: '1', A3: '2', A4: '3', A5: '4', B1: '4', C1: '2' };
+  const examples = GUIDE_SECTIONS.filter((section) => section.id !== 'errors').flatMap((section) =>
+    section.entries.map((entry) => [section.heading, entry.example] as const),
+  );
+
+  it('covers every guide category except the error reference', () => {
+    expect(examples.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it.each(examples)('%s: %s evaluates without a #NAME? or #ERROR!', (_heading, example) => {
+    const result = evaluateRaw(example, ctxFor(values)).result;
+    expect(result.error).toBeUndefined();
+    expect(result.value).not.toBeNull();
   });
 });
 
