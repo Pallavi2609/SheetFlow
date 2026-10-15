@@ -7,28 +7,8 @@ export function roundNumber(value: number): number {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-export function formatResult(result: EvalResult | undefined): string {
-  if (!result) return '';
-  if (result.error) return result.error;
-  const value = result.value;
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'number') {
-    if (Number.isInteger(value)) return String(value);
-    return String(roundNumber(value));
-  }
-  return value;
-}
-
-export function rawDisplay(raw: string): string {
-  return raw;
-}
-
 export function isFormulaRaw(raw: string): boolean {
   return raw.trimStart().startsWith('=');
-}
-
-export function literalDisplay(raw: string): string {
-  return raw;
 }
 
 export function cellDisplayText(raw: string | undefined, result: EvalResult | undefined): string {

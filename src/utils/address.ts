@@ -34,15 +34,6 @@ export function parseKey(key: string): GridPos | null {
   return { row, col };
 }
 
-export function isValidKey(key: string): boolean {
-  return parseKey(key) !== null;
-}
-
-export function posToKey(pos: GridPos): string | null {
-  if (pos.row < 0 || pos.row >= GRID_ROWS || pos.col < 0 || pos.col >= GRID_COLS) return null;
-  return toKey(pos.row, pos.col);
-}
-
 export function normalizeRange(a: GridPos, b: GridPos): NormalizedRange {
   return {
     minRow: Math.min(a.row, b.row),
@@ -70,17 +61,4 @@ export function rangeKeys(range: NormalizedRange): string[] {
     keys.push(toKey(pos.row, pos.col));
   }
   return keys;
-}
-
-export function posInRange(pos: GridPos, range: NormalizedRange): boolean {
-  return (
-    pos.row >= range.minRow &&
-    pos.row <= range.maxRow &&
-    pos.col >= range.minCol &&
-    pos.col <= range.maxCol
-  );
-}
-
-export function rangeSize(range: NormalizedRange): number {
-  return (range.maxRow - range.minRow + 1) * (range.maxCol - range.minCol + 1);
 }

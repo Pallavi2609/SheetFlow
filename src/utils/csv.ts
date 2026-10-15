@@ -1,6 +1,5 @@
-import { GRID_COLS, GRID_ROWS } from '../types';
 import type { Cell } from '../types';
-import { colToLabel, parseKey, toKey } from './address';
+import { parseKey, toKey } from './address';
 
 /**
  * Characters a spreadsheet app treats as the start of a formula. Text cells
@@ -116,9 +115,6 @@ export function parseDelimitedText(text: string): string[][] {
   if (trimmed.includes('\t')) {
     return trimmed.split('\n').map((line) => line.split('\t'));
   }
-  if (trimmed.includes(',') && !trimmed.includes('\n')) {
-    return parseCsv(trimmed);
-  }
   if (trimmed.includes(',')) {
     return parseCsv(trimmed);
   }
@@ -129,11 +125,3 @@ export function toTsv(rows: string[][]): string {
   return rows.map((row) => row.join('\t')).join('\n');
 }
 
-export function rawAt(cells: Record<string, Cell>, row: number, col: number): string | null {
-  if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
-  return cells[toKey(row, col)]?.raw ?? '';
-}
-
-export function columnLabel(index: number): string {
-  return colToLabel(index);
-}
